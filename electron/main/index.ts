@@ -3,9 +3,10 @@ import { release } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { update } from './update'
+import { sendCommand, LaunchPythonProcess } from '../../modules'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+globalThis.__filename = fileURLToPath(import.meta.url)
+globalThis.__dirname = dirname(__filename)
 
 // The built directory structure
 //
@@ -48,11 +49,11 @@ const indexHtml = join(process.env.DIST, 'index.html')
 async function createWindow() {
   win = new BrowserWindow({
     title: 'Main window',
+    fullscreen: true,
     icon: join(process.env.VITE_PUBLIC, 'favicon.ico'),
     webPreferences: {
       preload,
-      // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
-      // nodeIntegration: true,
+      nodeIntegration: true,
 
       // Consider using contextBridge.exposeInMainWorld
       // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
@@ -63,7 +64,7 @@ async function createWindow() {
   if (url) { // electron-vite-vue#298
     win.loadURL(url)
     // Open devTool if the app is not packaged
-    win.webContents.openDevTools()
+    // win.webContents.openDevTools()
   } else {
     win.loadFile(indexHtml)
   }
@@ -84,6 +85,10 @@ async function createWindow() {
 }
 
 app.whenReady().then(createWindow)
+
+app.on('ready', () => {
+  LaunchPythonProcess('pylens')
+})
 
 app.on('window-all-closed', () => {
   win = null
@@ -106,6 +111,18 @@ app.on('activate', () => {
     createWindow()
   }
 })
+
+ipcMain.on('start-camera', () => {
+  // LaunchPythonProcess('pylens')
+  sendCommand('start')
+  // You can send response back to renderer process if needed
+});
+
+ipcMain.on('stop-camera', () => {
+  // LaunchPythonProcess('pylens')
+  sendCommand('stop')
+  // You can send response back to renderer process if needed
+});
 
 // New window example arg: new windows url
 ipcMain.handle('open-win', (_, arg) => {
