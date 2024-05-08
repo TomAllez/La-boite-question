@@ -3,7 +3,7 @@ import { release } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { update } from './update'
-import { sendCommand, LaunchPythonProcess } from '../../modules'
+import { startAVRecording, stopAVRecording } from '../../modules'
 
 globalThis.__filename = fileURLToPath(import.meta.url)
 globalThis.__dirname = dirname(__filename)
@@ -49,11 +49,13 @@ const indexHtml = join(process.env.DIST, 'index.html')
 async function createWindow() {
   win = new BrowserWindow({
     title: 'Main window',
-    fullscreen: true,
+    fullscreen: false,
+
     icon: join(process.env.VITE_PUBLIC, 'favicon.ico'),
     webPreferences: {
       preload,
       nodeIntegration: true,
+
 
       // Consider using contextBridge.exposeInMainWorld
       // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
@@ -64,31 +66,28 @@ async function createWindow() {
   if (url) { // electron-vite-vue#298
     win.loadURL(url)
     // Open devTool if the app is not packaged
-    // win.webContents.openDevTools()
+    win.webContents.openDevTools()
   } else {
     win.loadFile(indexHtml)
   }
 
-  // Test actively push message to the Electron-Renderer
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', new Date().toLocaleString())
   })
 
-  // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https:')) shell.openExternal(url)
     return { action: 'deny' }
   })
 
-  // Apply electron-updater
   update(win)
 }
 
 app.whenReady().then(createWindow)
 
-app.on('ready', () => {
-  LaunchPythonProcess('pylens')
-})
+// app.on('ready', () => {
+//   LaunchPythonProcess('pylens')
+// })
 
 app.on('window-all-closed', () => {
   win = null
@@ -112,16 +111,14 @@ app.on('activate', () => {
   }
 })
 
-ipcMain.on('start-camera', () => {
-  // LaunchPythonProcess('pylens')
-  sendCommand('start')
-  // You can send response back to renderer process if needed
+ipcMain.on('start-camera', (event, args: any) => {
+  const { name } = args
+  startAVRecording(name); // Call startAVRecording function with arguments
 });
 
+// Listen for stop-camera message from renderer process
 ipcMain.on('stop-camera', () => {
-  // LaunchPythonProcess('pylens')
-  sendCommand('stop')
-  // You can send response back to renderer process if needed
+  stopAVRecording(); // Call stopAVRecording function
 });
 
 // New window example arg: new windows url
